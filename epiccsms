@@ -116,7 +116,7 @@ def aygaz_payload(n): return {"Gsm": n[2:]}
 def bisu_payload(n): return {"phoneNumber": n[2:]}
 def coffy_payload(n): return {"phoneNumber": f"+90{n[2:]}"}
 def defacto_payload(n): return {"mobilePhone": f"0{n[2:]}"}
-def englishhome_payload(n): return {"first_name": faker.first_name(), "last_name": faker.last_name(), "email": faker.email(), "phone": f"0{n[2:]}", "password": "nwejkfıower32", "email_allowed": False, "sms_allowed": False, "=("confirm": True, "tom_pay_allowed": True}
+def englishhome_payload(n): return {"first_name": faker.first_name(), "last_name": faker.last_name(), "email": faker.email(), "phone": f"0{n[2:]}", "password": "
 def filemarket_payload(n): return {"mobilePhoneNumber": f"90{n[2:]}"}
 def gez_payload(n): return None
 def gofody_payload(n): return {"country_code": "90", "phone": n[2:]}
