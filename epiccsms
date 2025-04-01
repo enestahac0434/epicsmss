@@ -232,7 +232,7 @@ def yotto_condition(r): return r.status == 201
 def qumpara_condition(r): return r.status == 200
 def aygaz_condition(r): return r.status == 200
 def pawapp_condition(r): return "success" in r.text
-def paybol_condition(r): return r.status == 200
+def paybol_condition(r): return "success" in r.text
 def ninewest_condition(r): return "success" in r.text
 def saka_condition(r): return "status" in r.text and "1" in r.text
 def superpedestrian_condition(r): return "detail" in r.text and "Ok" in r.text
@@ -349,9 +349,7 @@ epicsms_providers = [
     SMSProvider("NetGSM", "https://api.netgsm.com.tr/sms/send/otp", netgsm_payload, default_condition, headers={"Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Twilio", "https://api.twilio.com/2010-04-01/Accounts/{}/Messages.json".format(os.getenv("TWILIO_SID", "default_sid")), twilio_payload, twilio_condition, headers={"Authorization": "Basic {}".format(os.getenv("TWILIO_AUTH", "default_auth")), "Content-Type": "application/x-www-form-urlencoded"}, cooldown=5),
     SMSProvider("Nexmo", "https://rest.nexmo.com/sms/json", nexmo_payload, nexmo_condition, headers={"Content-Type": "application/json"}, cooldown=5),
-    SMSProvider("MessageBird", "https://rest.messagebird.com/messages", messagebird_payload, messagebird_condition, headers={"Authorization": "AccessKey {}".format(os.getenv("MESSAGEB
-
-IRD_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("MessageBird", "https://rest.messagebird.com/messages", messagebird_payload, messagebird_condition, headers={"Authorization": "AccessKey {}".format(os.getenv("MESSAGEBIRD_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Plivo", "https://api.plivo.com/v1/Account/{}/Message/".format(os.getenv("PLIVO_AUTH_ID", "default_id")), plivo_payload, plivo_condition, headers={"Authorization": "Basic {}".format(os.getenv("PLIVO_AUTH_TOKEN", "default_token")), "Content-Type": "application/json"}, cooldown=5),
     SMSProvider("Telnyx", "https://api.telnyx.com/v2/messages", telnyx_payload, telnyx_condition, headers={"Authorization": "Bearer {}".format(os.getenv("TELNYX_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
     SMSProvider("ClickSend", "https://rest.clicksend.com/v3/sms/send", clicksend_payload, clicksend_condition, headers={"Authorization": "Basic {}".format(os.getenv("CLICKSEND_API_KEY", "default_key")), "Content-Type": "application/json"}, cooldown=5),
